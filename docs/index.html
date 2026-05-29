@@ -712,6 +712,25 @@
     <p>© 2026 Rizki &amp; Hana · Made with ♥</p>
 </footer>
 
+<!-- FIREBASE -->
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+<script>
+    // ===== KONFIGURASI FIREBASE =====
+    // Ganti nilai di bawah dengan config dari Firebase project kamu
+    const firebaseConfig = {
+        apiKey: "PASTE_API_KEY",
+        authDomain: "PASTE_AUTH_DOMAIN",
+        databaseURL: "PASTE_DATABASE_URL",
+        projectId: "PASTE_PROJECT_ID",
+        storageBucket: "PASTE_STORAGE_BUCKET",
+        messagingSenderId: "PASTE_SENDER_ID",
+        appId: "PASTE_APP_ID"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+</script>
+
 <!-- YOUTUBE IFRAME API -->
 <script>
     var tag = document.createElement('script');
@@ -871,7 +890,7 @@ function startCountdown() {
     setInterval(update, 1000);
 }
 
-// ===== RSVP LOCALSTORAGE =====
+// ===== RSVP FIREBASE =====
 function submitRSVP(e) {
     e.preventDefault();
     var name = document.getElementById('rsvp-name').value.trim();
@@ -880,34 +899,63 @@ function submitRSVP(e) {
     var message = document.getElementById('rsvp-message').value.trim();
     if (!name || !attend) return;
 
-    var data = { name: name, attend: attend, guests: guests, message: message, time: new Date().toLocaleDateString('id-ID', { day:'numeric', month:'long', year:'numeric' }) };
-    var existing = JSON.parse(localStorage.getItem('undangan_rsvp') || '[]');
-    existing.unshift(data);
-    localStorage.setItem('undangan_rsvp', JSON.stringify(existing));
+    var btn = document.querySelector('.btn-submit');
+    btn.textContent = 'Mengirim...';
+    btn.disabled = true;
 
-    document.getElementById('rsvp-form').style.display = 'none';
-    document.getElementById('rsvp-success').style.display = 'block';
-    loadUcapan();
+    var data = {
+        name: name,
+        attend: attend,
+        guests: guests,
+        message: message,
+        time: new Date().toLocaleDateString('id-ID', { day:'numeric', month:'long', year:'numeric' }),
+        timestamp: firebase.database.ServerValue.TIMESTAMP
+    };
 
-    setTimeout(function() {
-        document.getElementById('rsvp-success').style.display = 'none';
-        document.getElementById('rsvp-form').style.display = 'block';
-        document.getElementById('rsvp-form').reset();
-    }, 4000);
+    db.ref('ucapan').push(data)
+        .then(function() {
+            document.getElementById('rsvp-form').style.display = 'none';
+            document.getElementById('rsvp-success').style.display = 'block';
+            setTimeout(function() {
+                document.getElementById('rsvp-success').style.display = 'none';
+                document.getElementById('rsvp-form').style.display = 'block';
+                document.getElementById('rsvp-form').reset();
+                btn.textContent = 'Kirim Konfirmasi';
+                btn.disabled = false;
+            }, 4000);
+        })
+        .catch(function(err) {
+            alert('Gagal mengirim. Coba lagi ya 🙏');
+            btn.textContent = 'Kirim Konfirmasi';
+            btn.disabled = false;
+        });
 }
 
 function loadUcapan() {
     var list = document.getElementById('ucapan-list');
-    var data = JSON.parse(localStorage.getItem('undangan_rsvp') || '[]');
-    if (data.length === 0) {
-        list.innerHTML = '<p style="color:#bbb;font-style:italic;font-family:\'Cormorant Garamond\',serif;font-size:1.1rem">Jadilah yang pertama memberikan ucapan ✨</p>';
-        return;
-    }
-    list.innerHTML = data.map(function(d) {
-        var statusLabel = d.attend === 'hadir' ? '✅ Hadir' : d.attend === 'tidak' ? '❌ Tidak Hadir' : '🤔 Belum Pasti';
-        var statusClass = d.attend === 'hadir' ? 'hadir' : d.attend === 'tidak' ? 'tidak' : '';
-        return '<div class="ucapan-item"><div class="ucapan-name">' + escHtml(d.name) + '</div><div class="ucapan-status ' + statusClass + '">' + statusLabel + ' · ' + d.guests + ' tamu · ' + d.time + '</div>' + (d.message ? '<div class="ucapan-message">"' + escHtml(d.message) + '"</div>' : '') + '</div>';
-    }).join('');
+    list.innerHTML = '<p style="color:#bbb;font-style:italic;font-family:\'Cormorant Garamond\',serif;font-size:1.1rem">Memuat ucapan...</p>';
+
+    db.ref('ucapan').orderByChild('timestamp').on('value', function(snapshot) {
+        var ucapanArr = [];
+        snapshot.forEach(function(child) {
+            ucapanArr.unshift(child.val()); // terbaru di atas
+        });
+
+        if (ucapanArr.length === 0) {
+            list.innerHTML = '<p style="color:#bbb;font-style:italic;font-family:\'Cormorant Garamond\',serif;font-size:1.1rem">Jadilah yang pertama memberikan ucapan ✨</p>';
+            return;
+        }
+
+        list.innerHTML = ucapanArr.map(function(d) {
+            var statusLabel = d.attend === 'hadir' ? '✅ Hadir' : d.attend === 'tidak' ? '❌ Tidak Hadir' : '🤔 Belum Pasti';
+            var statusClass = d.attend === 'hadir' ? 'hadir' : d.attend === 'tidak' ? 'tidak' : '';
+            return '<div class="ucapan-item">' +
+                '<div class="ucapan-name">' + escHtml(d.name) + '</div>' +
+                '<div class="ucapan-status ' + statusClass + '">' + statusLabel + ' · ' + d.guests + ' tamu · ' + (d.time || '') + '</div>' +
+                (d.message ? '<div class="ucapan-message">"' + escHtml(d.message) + '"</div>' : '') +
+                '</div>';
+        }).join('');
+    });
 }
 
 function escHtml(str) {
