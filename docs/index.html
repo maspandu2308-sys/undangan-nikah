@@ -123,17 +123,70 @@
         /* ===== MUSIC BUTTON ===== */
         #music-btn {
             position: fixed; bottom: 25px; right: 25px; z-index: 999;
-            width: 52px; height: 52px; border-radius: 50%;
-            background: var(--gold); border: none; cursor: pointer;
+            display: flex; align-items: center; gap: 0.6rem;
+            padding: 0.45rem 1rem 0.45rem 0.45rem;
+            border-radius: 50px;
+            background: rgba(18, 12, 4, 0.88);
+            border: 1px solid rgba(200,169,110,0.6);
+            cursor: pointer;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 4px 24px rgba(0,0,0,0.35), 0 0 0 0 rgba(200,169,110,0.3);
+            animation: pulse-music 2.5s ease-in-out infinite;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        #music-btn:hover { border-color: var(--gold); }
+        #music-btn.paused { animation: none; border-color: rgba(200,169,110,0.3); }
+        @keyframes pulse-music {
+            0%,100% { box-shadow: 0 4px 24px rgba(0,0,0,0.35), 0 0 0 0 rgba(200,169,110,0.3); }
+            50% { box-shadow: 0 4px 24px rgba(0,0,0,0.35), 0 0 0 8px rgba(200,169,110,0); }
+        }
+
+        /* Vinyl record */
+        .vinyl {
+            width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0;
+            background: repeating-radial-gradient(circle, #1a1208 0px, #1a1208 3px, #2e2010 3px, #2e2010 5px);
+            border: 2px solid var(--gold);
             display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 4px 20px rgba(200,169,110,0.5);
-            animation: spin-slow 4s linear infinite;
+            position: relative;
+            animation: spin-vinyl 3s linear infinite;
             transition: animation-play-state 0.3s;
         }
-        #music-btn.paused { animation-play-state: paused; }
-        @keyframes spin-slow { to { transform: rotate(360deg); } }
-        #music-btn svg { animation: spin-slow 4s linear infinite reverse; }
-        #music-btn.paused svg { animation-play-state: paused; }
+        #music-btn.paused .vinyl { animation-play-state: paused; }
+        @keyframes spin-vinyl { to { transform: rotate(360deg); } }
+        .vinyl-center {
+            width: 11px; height: 11px; border-radius: 50%;
+            background: radial-gradient(circle, var(--gold-light) 30%, var(--gold) 100%);
+            border: 1.5px solid rgba(200,169,110,0.4);
+            position: absolute;
+        }
+
+        /* Sound waves */
+        .music-waves {
+            display: flex; align-items: center; gap: 2px; height: 16px;
+        }
+        .music-waves span {
+            display: block; width: 3px; border-radius: 3px;
+            background: var(--gold); animation: wave 0.8s ease-in-out infinite;
+        }
+        .music-waves span:nth-child(1) { height: 6px; animation-delay: 0s; }
+        .music-waves span:nth-child(2) { height: 14px; animation-delay: 0.15s; }
+        .music-waves span:nth-child(3) { height: 10px; animation-delay: 0.3s; }
+        .music-waves span:nth-child(4) { height: 14px; animation-delay: 0.45s; }
+        .music-waves span:nth-child(5) { height: 6px; animation-delay: 0.6s; }
+        @keyframes wave {
+            0%,100% { transform: scaleY(0.4); opacity: 0.5; }
+            50% { transform: scaleY(1); opacity: 1; }
+        }
+        #music-btn.paused .music-waves span { animation: none; transform: scaleY(0.4); opacity: 0.3; }
+
+        .music-label {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 0.8rem; letter-spacing: 2px;
+            color: var(--gold); white-space: nowrap;
+            text-transform: uppercase;
+        }
+        #music-btn.paused .music-label { opacity: 0.5; }
+
         #youtube-player { position: fixed; bottom: -200px; left: -200px; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
 
         /* ===== MAIN CONTENT ===== */
@@ -485,9 +538,11 @@
 
 <!-- MUSIC BUTTON -->
 <button id="music-btn" onclick="toggleMusic()" title="Toggle Musik">
-    <svg id="music-icon" width="22" height="22" viewBox="0 0 24 24" fill="#1c1208">
-        <path d="M9 18V5l12-2v13M9 18c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2zm12-2c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2z"/>
-    </svg>
+    <div class="vinyl"><div class="vinyl-center"></div></div>
+    <div class="music-waves">
+        <span></span><span></span><span></span><span></span><span></span>
+    </div>
+    <span class="music-label" id="music-label">Musik</span>
 </button>
 <div id="youtube-player"></div>
 
@@ -766,14 +821,18 @@ function onYouTubeIframeAPIReady() {
 
 function toggleMusic() {
     if (!musicReady) return;
+    var btn = document.getElementById('music-btn');
+    var label = document.getElementById('music-label');
     if (isMusicPlaying) {
         ytPlayer.pauseVideo();
         isMusicPlaying = false;
-        document.getElementById('music-btn').classList.add('paused');
+        btn.classList.add('paused');
+        label.textContent = 'Musik';
     } else {
         ytPlayer.playVideo();
         isMusicPlaying = true;
-        document.getElementById('music-btn').classList.remove('paused');
+        btn.classList.remove('paused');
+        label.textContent = 'Musik';
     }
 }
 
